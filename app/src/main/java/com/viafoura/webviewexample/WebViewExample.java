@@ -17,7 +17,7 @@ import com.viafoura.R;
 public class WebViewExample extends Activity {
 
 
-    private static final String TEST_SITE = "http://gusmelo.com/envs/envs.html";
+    private static final String TEST_SITE = "http://dougal.whothaman.com:8000/comments.html";
 
     private android.webkit.WebView mWebView;
 
