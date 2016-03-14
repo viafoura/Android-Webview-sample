@@ -1,8 +1,10 @@
 package com.viafoura.webviewexample;
 
 import android.app.Activity;
+import android.graphics.Paint;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.webkit.WebView;
 import android.webkit.WebSettings;
 import android.webkit.WebViewClient;
@@ -17,7 +19,8 @@ import com.viafoura.R;
 public class WebViewExample extends Activity {
 
 
-    private static final String TEST_SITE = "http://gusmelo.com/envs/envs.html";
+    // private static final String TEST_SITE = "http://gusmelo.com/envs/envs.html";
+    private static final String TEST_SITE = "http://192.168.120.131:8000/";
 
     private android.webkit.WebView mWebView;
 
@@ -28,6 +31,7 @@ public class WebViewExample extends Activity {
         setContentView(R.layout.activity_web_view);
 
         mWebView = (WebView) findViewById(R.id.activity_web_view);
+        mWebView.setLayerType(View.LAYER_TYPE_SOFTWARE, new Paint());
 
         // Enable Javascript
         WebSettings webSettings = mWebView.getSettings();
@@ -83,6 +87,8 @@ public class WebViewExample extends Activity {
                         break;
 
                     default:
+
+                        mWebView.loadUrl("javascript:window.postMessage('webviewClose', '*')", null);
 
                         Log.i("onActivityResult", "Caught Social Login cancellation");
 
