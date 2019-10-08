@@ -1,7 +1,6 @@
 package com.viafoura.webviewexample
 
-import android.app.Dialog
-import android.opengl.Visibility
+import android.app.AlertDialog
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -9,8 +8,15 @@ import android.view.View
 import kotlinx.android.synthetic.main.activity_main.*
 import android.os.Message
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.webkit.*
-import android.widget.RelativeLayout
+import androidx.constraintlayout.widget.ConstraintLayout
+
+
+
+
+
+
 
 
 class MainActivity : AppCompatActivity() {
@@ -69,35 +75,57 @@ class MainActivity : AppCompatActivity() {
                 isUserGesture: Boolean,
                 resultMsg: Message?
             ): Boolean {
+
+
+                webView.removeAllViews();
                 val newWebView = WebView(this@MainActivity)
                 newWebView.settings.domStorageEnabled = true
                 newWebView.settings.javaScriptEnabled = true
+                newWebView.settings.builtInZoomControls = true
                 newWebView.settings.setSupportMultipleWindows(true)
+                newWebView.visibility = View.VISIBLE
                 newWebView.webViewClient = object : WebViewClient() {
                     override fun shouldOverrideUrlLoading(
                         view: WebView?,
                         request: WebResourceRequest?
                     ): Boolean {
-                        view?.loadUrl(url)
+                        view?.loadUrl(request!!.url.toString())
                         return true
                     }
                 }
+                newWebView.layoutParams = ConstraintLayout.LayoutParams(200, 200)
 
-                view?.addView(newWebView)
-                view?.bringChildToFront(newWebView)
-                newWebView.visibility = View.VISIBLE
+//                webView.addView(newWebView, ConstraintLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+
+                val builder = AlertDialog.Builder(this@MainActivity).create()
+                builder.setTitle("");
+                builder.setView(newWebView);
+                builder.setButton(
+                    "Close"
+                ) { dialog, id ->
+                    webView.destroy()
+                    dialog.dismiss()
+                }
+                builder.show()
+                builder.window!!.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
+
+                val cookieManager = CookieManager.getInstance()
+                cookieManager.setAcceptCookie(true)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    cookieManager.setAcceptThirdPartyCookies(newWebView, true)
+                }
 
                 val transport = resultMsg?.obj as WebView.WebViewTransport
                 transport.webView = newWebView
-                resultMsg?.sendToTarget()
+                resultMsg.sendToTarget()
 
                 return true
             }
 
-            override fun onCloseWindow(window: WebView?) {
-                val parent = window?.parent as WebView
-                parent.removeView(window)
-            }
+//            override fun onCloseWindow(window: WebView?) {
+//                val parent = window?.parent as WebView
+//                parent.removeView(window)
+//            }
         }
 
         webView.loadUrl(url)
