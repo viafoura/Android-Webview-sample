@@ -1,5 +1,6 @@
 package com.viafoura.webviewexample
 
+import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
@@ -7,17 +8,7 @@ import android.os.Bundle
 import android.view.View
 import kotlinx.android.synthetic.main.activity_main.*
 import android.os.Message
-import android.view.ViewGroup
-import android.view.WindowManager
 import android.webkit.*
-import androidx.constraintlayout.widget.ConstraintLayout
-
-
-
-
-
-
-
 
 class MainActivity : AppCompatActivity() {
 
@@ -27,9 +18,85 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Get the web view settings instance
-        val settings = webView.settings
+        setWebViewSettings(webView.settings)
 
+        // This helps with testing, should be removed when we push a final version
+        CookieManager.getInstance().removeAllCookies {
+            // Enable hardware acceleration
+            webView.clearCache(false)
+            webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            webView.webChromeClient = WebViewWebChromeClient()
+            webView.loadUrl(url)
+        }
+    }
+
+    override fun onBackPressed() {
+        if (webView.canGoBack()) {
+            // If web view have back history, then go to the web view back history
+            webView.goBack()
+        }
+    }
+
+    inner class WebViewWebChromeClient : WebChromeClient() {
+        override fun onCreateWindow(view: WebView?, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message?): Boolean {
+            val dialogWebView = WebView(this@MainActivity)
+            val dialog = AlertDialog.Builder(this@MainActivity).create()
+
+            setWebViewSettings(dialogWebView.settings)
+            dialogWebView.webViewClient = DialogViewWebViewClient(dialog)
+
+            dialog.setView(dialogWebView)
+            dialog.show()
+            dialog.setOnDismissListener { dialogWebView.destroy() }
+            // Destroy the web view when a user clicks the OS back button which closes the dialog and dispatches an event handled here
+            dialog.setOnCancelListener { dialogWebView.destroy() }
+
+            val transport = resultMsg?.obj as WebView.WebViewTransport
+            transport.webView = dialogWebView
+            resultMsg.sendToTarget()
+
+            return true
+        }
+
+        override fun onCloseWindow(window: WebView?) {
+            val parent = window?.parent as WebView
+            parent.removeView(window)
+        }
+    }
+
+    inner class DialogViewWebViewClient(private val dialog: AlertDialog) : WebViewClient() {
+        override fun onPageFinished(view: WebView?, url: String?) {
+            if (url?.contains("/callback.php") == true) {
+                dialog.dismiss()
+            }
+
+            super.onPageFinished(view, url)
+        }
+
+        override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+            when {
+                // User clicked Facebook cancel button
+                request?.url?.getQueryParameter("error_reason")?.equals("user_denied") == true -> {
+                    dialog.dismiss()
+                    return true
+                }
+                // User clicked Linked In cancel button
+                request?.url?.getQueryParameter("error")?.equals("user_cancelled_login") == true -> {
+                    dialog.dismiss()
+                    return true
+                }
+                // User clicked Twitter cancel button
+                request?.url?.getQueryParameter("denied") != null -> {
+                    dialog.dismiss()
+                    return true
+                }
+                else -> return super.shouldOverrideUrlLoading(view, request)
+            }
+        }
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun setWebViewSettings(settings: WebSettings) {
         // Enable and setup web view cache
         settings.setAppCacheEnabled(true)
         settings.cacheMode = WebSettings.LOAD_DEFAULT
@@ -45,9 +112,6 @@ class MainActivity : AppCompatActivity() {
             settings.safeBrowsingEnabled = true  // api 26
         }
 
-        // Enable hardware acceleration
-        webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-
         // Important for Viafoura to work
         settings.javaScriptCanOpenWindowsAutomatically = true
         settings.domStorageEnabled = true
@@ -56,85 +120,7 @@ class MainActivity : AppCompatActivity() {
         settings.blockNetworkImage = false
         settings.setSupportMultipleWindows(true)
 
-        // Set web view client
-        val webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(
-                view: WebView?,
-                request: WebResourceRequest?
-            ): Boolean {
-                view?.loadUrl(url)
-                return true
-            }
-        }
-        webView.webViewClient = webViewClient
-
-        webView.webChromeClient = object: WebChromeClient() {
-            override fun onCreateWindow(
-                view: WebView?,
-                isDialog: Boolean,
-                isUserGesture: Boolean,
-                resultMsg: Message?
-            ): Boolean {
-
-
-                webView.removeAllViews();
-                val newWebView = WebView(this@MainActivity)
-                newWebView.settings.domStorageEnabled = true
-                newWebView.settings.javaScriptEnabled = true
-                newWebView.settings.builtInZoomControls = true
-                newWebView.settings.setSupportMultipleWindows(true)
-                newWebView.visibility = View.VISIBLE
-                newWebView.webViewClient = object : WebViewClient() {
-                    override fun shouldOverrideUrlLoading(
-                        view: WebView?,
-                        request: WebResourceRequest?
-                    ): Boolean {
-                        view?.loadUrl(request!!.url.toString())
-                        return true
-                    }
-                }
-                newWebView.layoutParams = ConstraintLayout.LayoutParams(200, 200)
-
-//                webView.addView(newWebView, ConstraintLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
-
-                val builder = AlertDialog.Builder(this@MainActivity).create()
-                builder.setTitle("");
-                builder.setView(newWebView);
-                builder.setButton(
-                    "Close"
-                ) { dialog, id ->
-                    webView.destroy()
-                    dialog.dismiss()
-                }
-                builder.show()
-                builder.window!!.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
-
-                val cookieManager = CookieManager.getInstance()
-                cookieManager.setAcceptCookie(true)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    cookieManager.setAcceptThirdPartyCookies(newWebView, true)
-                }
-
-                val transport = resultMsg?.obj as WebView.WebViewTransport
-                transport.webView = newWebView
-                resultMsg.sendToTarget()
-
-                return true
-            }
-
-//            override fun onCloseWindow(window: WebView?) {
-//                val parent = window?.parent as WebView
-//                parent.removeView(window)
-//            }
-        }
-
-        webView.loadUrl(url)
-    }
-
-    override fun onBackPressed() {
-        if (webView.canGoBack()) {
-            // If web view have back history, then go to the web view back history
-            webView.goBack()
-        }
+        // Important for Google social login to work as it gives an error page otherwise (Chrome mobile UA)
+        settings.userAgentString = "Mozilla/5.0 (Linux; Android 7.0; SM-G930V Build/NRD90M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.125 Mobile Safari/537.36"
     }
 }
