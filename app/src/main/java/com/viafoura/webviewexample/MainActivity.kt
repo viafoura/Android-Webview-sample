@@ -1,17 +1,14 @@
 package com.viafoura.webviewexample
 
-import android.app.Dialog
-import android.opengl.Visibility
+import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.View
 import kotlinx.android.synthetic.main.activity_main.*
 import android.os.Message
-import android.view.ViewGroup
 import android.webkit.*
-import android.widget.RelativeLayout
-
 
 class MainActivity : AppCompatActivity() {
 
@@ -21,9 +18,85 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Get the web view settings instance
-        val settings = webView.settings
+        setWebViewSettings(webView.settings)
 
+        // This helps with testing, should be removed when we push a final version
+        CookieManager.getInstance().removeAllCookies {
+            // Enable hardware acceleration
+            webView.clearCache(false)
+            webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            webView.webChromeClient = WebViewWebChromeClient()
+            webView.loadUrl(url)
+        }
+    }
+
+    override fun onBackPressed() {
+        if (webView.canGoBack()) {
+            // If web view have back history, then go to the web view back history
+            webView.goBack()
+        }
+    }
+
+    inner class WebViewWebChromeClient : WebChromeClient() {
+        override fun onCreateWindow(view: WebView?, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message?): Boolean {
+            val dialogWebView = WebView(this@MainActivity)
+            val dialog = AlertDialog.Builder(this@MainActivity).create()
+
+            setWebViewSettings(dialogWebView.settings)
+            dialogWebView.webViewClient = DialogViewWebViewClient(dialog)
+
+            dialog.setView(dialogWebView)
+            dialog.show()
+            dialog.setOnDismissListener { dialogWebView.destroy() }
+            // Destroy the web view when a user clicks the OS back button which closes the dialog and dispatches an event handled here
+            dialog.setOnCancelListener { dialogWebView.destroy() }
+
+            val transport = resultMsg?.obj as WebView.WebViewTransport
+            transport.webView = dialogWebView
+            resultMsg.sendToTarget()
+
+            return true
+        }
+
+        override fun onCloseWindow(window: WebView?) {
+            val parent = window?.parent as WebView
+            parent.removeView(window)
+        }
+    }
+
+    inner class DialogViewWebViewClient(private val dialog: AlertDialog) : WebViewClient() {
+        override fun onPageFinished(view: WebView?, url: String?) {
+            if (url?.contains("/callback.php") == true) {
+                dialog.dismiss()
+            }
+
+            super.onPageFinished(view, url)
+        }
+
+        override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+            when {
+                // User clicked Facebook cancel button
+                request?.url?.getQueryParameter("error_reason")?.equals("user_denied") == true -> {
+                    dialog.dismiss()
+                    return true
+                }
+                // User clicked Linked In cancel button
+                request?.url?.getQueryParameter("error")?.equals("user_cancelled_login") == true -> {
+                    dialog.dismiss()
+                    return true
+                }
+                // User clicked Twitter cancel button
+                request?.url?.getQueryParameter("denied") != null -> {
+                    dialog.dismiss()
+                    return true
+                }
+                else -> return super.shouldOverrideUrlLoading(view, request)
+            }
+        }
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun setWebViewSettings(settings: WebSettings) {
         // Enable and setup web view cache
         settings.setAppCacheEnabled(true)
         settings.cacheMode = WebSettings.LOAD_DEFAULT
@@ -39,9 +112,6 @@ class MainActivity : AppCompatActivity() {
             settings.safeBrowsingEnabled = true  // api 26
         }
 
-        // Enable hardware acceleration
-        webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-
         // Important for Viafoura to work
         settings.javaScriptCanOpenWindowsAutomatically = true
         settings.domStorageEnabled = true
@@ -50,63 +120,7 @@ class MainActivity : AppCompatActivity() {
         settings.blockNetworkImage = false
         settings.setSupportMultipleWindows(true)
 
-        // Set web view client
-        val webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(
-                view: WebView?,
-                request: WebResourceRequest?
-            ): Boolean {
-                view?.loadUrl(url)
-                return true
-            }
-        }
-        webView.webViewClient = webViewClient
-
-        webView.webChromeClient = object: WebChromeClient() {
-            override fun onCreateWindow(
-                view: WebView?,
-                isDialog: Boolean,
-                isUserGesture: Boolean,
-                resultMsg: Message?
-            ): Boolean {
-                val newWebView = WebView(this@MainActivity)
-                newWebView.settings.domStorageEnabled = true
-                newWebView.settings.javaScriptEnabled = true
-                newWebView.settings.setSupportMultipleWindows(true)
-                newWebView.webViewClient = object : WebViewClient() {
-                    override fun shouldOverrideUrlLoading(
-                        view: WebView?,
-                        request: WebResourceRequest?
-                    ): Boolean {
-                        view?.loadUrl(url)
-                        return true
-                    }
-                }
-
-                view?.addView(newWebView)
-                view?.bringChildToFront(newWebView)
-                newWebView.visibility = View.VISIBLE
-
-                val transport = resultMsg?.obj as WebView.WebViewTransport
-                transport.webView = newWebView
-                resultMsg?.sendToTarget()
-
-                return true
-            }
-
-            override fun onCloseWindow(window: WebView?) {
-                val parent = window?.parent as WebView
-                parent.removeView(window)
-            }
-        }
-
-        webView.loadUrl(url)
-    }
-
-    override fun onBackPressed() {
-        if (webView.canGoBack()) {
-            // If web view have back history, then go to the web view back history
-            webView.goBack()
-        }
+        // Important for Google social login to work as it gives an error page otherwise (Chrome mobile UA)
+        settings.userAgentString = "Mozilla/5.0 (Linux; Android 7.0; SM-G930V Build/NRD90M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.125 Mobile Safari/537.36"
     }
 }
