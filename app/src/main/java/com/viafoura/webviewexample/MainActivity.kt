@@ -3,6 +3,7 @@ package com.viafoura.webviewexample
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.Context
+import android.net.Uri
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -87,24 +88,22 @@ class MainActivity : AppCompatActivity() {
         }
 
         override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-            when {
-                // User clicked Facebook cancel button
-                request?.url?.getQueryParameter("error_reason")?.equals("user_denied") == true -> {
-                    dialog.dismiss()
-                    return true
-                }
-                // User clicked Linked In cancel button
-                request?.url?.getQueryParameter("error")?.equals("user_cancelled_login") == true -> {
-                    dialog.dismiss()
-                    return true
-                }
-                // User clicked Twitter cancel button
-                request?.url?.getQueryParameter("denied") != null -> {
-                    dialog.dismiss()
-                    return true
-                }
-                else -> return super.shouldOverrideUrlLoading(view, request)
+            if (isUrlACancelRequest(request?.url)) {
+                dialog.dismiss()
+                return true
             }
+
+            return super.shouldOverrideUrlLoading(view, request)
+        }
+
+        // Required for older versions of Android
+        override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+            if (isUrlACancelRequest(Uri.parse(url))) {
+                dialog.dismiss()
+                return true
+            }
+
+            return super.shouldOverrideUrlLoading(view, url)
         }
     }
 
@@ -135,5 +134,11 @@ class MainActivity : AppCompatActivity() {
 
         // Important for Google social login to work as it gives an error page otherwise (Chrome mobile UA)
         settings.userAgentString = "Mozilla/5.0 (Linux; Android 7.0; SM-G930V Build/NRD90M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.125 Mobile Safari/537.36"
+    }
+
+    private fun isUrlACancelRequest(url: Uri?): Boolean {
+        return url?.getQueryParameter("error_reason")?.equals("user_denied") == true
+                || url?.getQueryParameter("error")?.equals("user_cancelled_login") == true
+                || url?.getQueryParameter("denied") != null
     }
 }
