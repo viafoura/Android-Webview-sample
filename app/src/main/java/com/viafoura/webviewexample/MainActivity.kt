@@ -2,13 +2,20 @@ package com.viafoura.webviewexample
 
 import android.annotation.SuppressLint
 import android.app.AlertDialog
+import android.content.Context
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.View
 import kotlinx.android.synthetic.main.activity_main.*
 import android.os.Message
+import android.util.Log
+import android.view.MotionEvent
+import android.view.View.FOCUSABLE
+import android.view.View.NOT_FOCUSABLE
 import android.webkit.*
+
+
 
 class MainActivity : AppCompatActivity() {
 
@@ -39,7 +46,7 @@ class MainActivity : AppCompatActivity() {
 
     inner class WebViewWebChromeClient : WebChromeClient() {
         override fun onCreateWindow(view: WebView?, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message?): Boolean {
-            val dialogWebView = WebView(this@MainActivity)
+            val dialogWebView = DialogWebView(this@MainActivity)
             val dialog = AlertDialog.Builder(this@MainActivity).create()
 
             setWebViewSettings(dialogWebView.settings)
@@ -61,6 +68,12 @@ class MainActivity : AppCompatActivity() {
         override fun onCloseWindow(window: WebView?) {
             val parent = window?.parent as WebView
             parent.removeView(window)
+        }
+    }
+
+    open inner class DialogWebView(context: Context?) : WebView(context) {
+        override fun onCheckIsTextEditor(): Boolean {
+            return true
         }
     }
 
