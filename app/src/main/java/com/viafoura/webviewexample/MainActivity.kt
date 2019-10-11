@@ -28,14 +28,11 @@ class MainActivity : AppCompatActivity() {
 
         setWebViewSettings(webView.settings)
 
-        // This helps with testing, should be removed when we push a final version
-        CookieManager.getInstance().removeAllCookies {
-            // Enable hardware acceleration
-            webView.clearCache(false)
-            webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-            webView.webChromeClient = WebViewWebChromeClient()
-            webView.loadUrl(url)
-        }
+        // Enable hardware acceleration
+        webView.clearCache(false)
+        webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+        webView.webChromeClient = WebViewWebChromeClient()
+        webView.loadUrl(url)
     }
 
     override fun onBackPressed() {
@@ -46,7 +43,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     inner class WebViewWebChromeClient : WebChromeClient() {
+        // Viafoura's social login uses  popup windows. By default Android webview will not handle them
+        // so some extra code is needed to handle this case
         override fun onCreateWindow(view: WebView?, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message?): Boolean {
+            // For the sake of convenience it is easy to load the popup window that handles social
+            // login in a webview in a dialog window
             val dialogWebView = DialogWebView(this@MainActivity)
             val dialog = AlertDialog.Builder(this@MainActivity).create()
 
@@ -66,12 +67,15 @@ class MainActivity : AppCompatActivity() {
             return true
         }
 
+        // When the webview closes, it should remove itself from the dialog
         override fun onCloseWindow(window: WebView?) {
             val parent = window?.parent as WebView
             parent.removeView(window)
         }
     }
 
+    // This is needed to ensure that the soft keyboard appears in the dialog window
+    // so the user can enter login credentials
     open inner class DialogWebView(context: Context?) : WebView(context) {
         override fun onCheckIsTextEditor(): Boolean {
             return true
@@ -79,6 +83,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     inner class DialogViewWebViewClient(private val dialog: AlertDialog) : WebViewClient() {
+        // The dialog should be dismissed after the login process has finished
         override fun onPageFinished(view: WebView?, url: String?) {
             if (url?.contains("/callback.php") == true) {
                 dialog.dismiss()
@@ -109,7 +114,7 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun setWebViewSettings(settings: WebSettings) {
-        // Enable and setup web view cache
+        // Enable and set up web view cache
         settings.setAppCacheEnabled(true)
         settings.cacheMode = WebSettings.LOAD_DEFAULT
         settings.setAppCachePath(cacheDir.path)
