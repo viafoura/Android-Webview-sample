@@ -1,10 +1,10 @@
 ## Objective
 
-The objective of this repository is to illustrate how to use a WebView
+The objective of this repository is to illustrate how to use a `WebView`
 component to access a page integrating with Viafoura in order to use the social
 login capability Viafoura provides.
 
-When developing an app in Android that includes a WebView component, a few
+When developing an app in Android that includes a `WebView` component, a few
 additional steps are needed to ensure that the social login functionality that
 Viafoura provides functions properly.
 
@@ -13,13 +13,13 @@ includes source code examples.
 
 ## Why
 
-The Android WebView component provides a subset of the functionality of the
-Android Webkit browser. The WebView's behavior deviates from regular browsers
+The Android `WebView` component provides a subset of the functionality of the
+Android Webkit browser. The `WebView`'s behavior deviates from regular browsers
 in the way that it manages popup windows. When a popup window is opened from a
-link in a page within a WebView, it is opened separately in the Android browser,
-and not within the same WebView. This breaks the continuity of the web page, and
-makes it impossible to return control to the page hosted with a WebView in the
-app.
+link in a page within a `WebView`, it is opened separately in the Android
+browser, and not within the same `WebView`. This breaks the continuity of the
+web page, and makes it impossible to return control to the page hosted with a
+`WebView` in the app.
 
 Viafoura's social login process requires a popup window to manage the
 authentication process with the appropriate social network. Once the social
@@ -56,8 +56,8 @@ The `WebView`'s controller must:
 
 ### Other Issues
 
-There potentially be other issues that appear when attempting to implement
-Viafoura's tools in a WebView.
+There may potentially be other issues that appear when attempting to implement
+Viafoura's tools in a `WebView`.
 
 [Contact our support team at support@viafoura.com for more information and
 assistance](mailto:support@viafoura.com).
